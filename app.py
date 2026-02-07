@@ -1,41 +1,36 @@
-from flask import Flask, jsonify
-from datetime import datetime, timedelta
-
-app = Flask(__name__)
-
 @app.route('/bin-data')
 def bin_data():
     today = datetime.now().date()
     
     # 1. Recycling (Every Wednesday)
     days_until_wed = (2 - today.weekday() + 7) % 7
-    next_wednesday = today + timedelta(days=days_until_wed)
+    # If today is Wednesday, we show today. If you want to show NEXT Wed, change % 7 to + 7
+    next_wed = today + timedelta(days=days_until_wed)
+    wed_suffix = get_date_suffix(next_wed.day)
     
     # 2. Black Bin (Every 2 weeks on Friday)
-    # Anchor: Feb 6, 2026 was a collection day
     anchor_date = datetime(2026, 2, 6).date()
-    days_since_anchor = (today - anchor_date).days
     
-    # Calculate weeks since anchor (integer division)
+    # Calculate weeks elapsed since the anchor Friday
+    days_since_anchor = (today - anchor_date).days
     weeks_since = days_since_anchor // 7
     
-    # If weeks_since is even, this Friday is a collection day
-    # If weeks_since is odd, next Friday is a collection day
+    # LOGIC:
+    # Week 0 (Feb 6 - Feb 12): Collection was Feb 6. Next is in 14 days from Feb 6.
+    # Week 1 (Feb 13 - Feb 19): This is the 'off' week. Next is coming up this Friday.
+    
     if weeks_since % 2 == 0:
-        days_until_fri = (4 - today.weekday() + 7) % 7
+        # We are in the week FOLLOWING a collection. Next one is 2 Fridays away.
+        # We calculate days until the Friday that is (weeks_since + 2) from anchor.
+        next_collection_date = anchor_date + timedelta(weeks=(weeks_since + 2))
     else:
-        days_until_fri = (4 - today.weekday() + 14) % 7
+        # We are in the 'off' week. Next one is the very next Friday.
+        next_collection_date = anchor_date + timedelta(weeks=(weeks_since + 1))
         
-    next_friday = today + timedelta(days=days_until_fri)
+    fri_suffix = get_date_suffix(next_collection_date.day)
 
     return jsonify({
-        "merge_variables": {
-            "recycling_day": next_wednesday.strftime("%A, %b %d"),
-            "black_bin_day": next_friday.strftime("%A, %b %d"),
-            "is_black_bin_week": (weeks_since % 2 == 0)
-        }
+        "recycling_day": next_wed.strftime(f"%a {next_wed.day}{wed_suffix}"),
+        "black_bin_day": next_collection_date.strftime(f"%a {next_collection_date.day}{fri_suffix}"),
+        "is_black_bin_week": (next_collection_date - today).days <= 6
     })
-
-if __name__ == '__main__':
-    app.run()
-
