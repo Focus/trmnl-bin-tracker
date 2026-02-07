@@ -1,3 +1,14 @@
+from flask import Flask, jsonify
+from datetime import datetime, timedelta
+
+app = Flask(__name__)
+
+def get_date_suffix(day):
+    if 11 <= day <= 13:
+        return 'th'
+    else:
+        return {1: 'st', 2: 'nd', 3: 'rd'}.get(day % 10, 'th')
+
 @app.route('/bin-data')
 def bin_data():
     today = datetime.now().date()
